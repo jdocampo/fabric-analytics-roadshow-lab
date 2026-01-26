@@ -1,0 +1,390 @@
+-- Fabric notebook source
+
+-- METADATA ********************
+
+-- META {
+-- META   "kernel_info": {
+-- META     "name": "sqldatawarehouse"
+-- META   },
+-- META   "dependencies": {
+-- META     "warehouse": {}
+-- META   }
+-- META }
+
+-- MARKDOWN ********************
+
+-- <div style="margin: 0; padding: 0; text-align: left;">
+--   <table style="border: none; margin: 0; padding: 0; border-collapse: collapse;">
+--     <tr>
+--       <td style="border: none; vertical-align: middle; text-align: left; padding: 0; margin: 0;">
+--         <img src="https://github.com/microsoft/fabric-analytics-roadshow-lab/blob/main/assets/images/data-agent/fabric-data-science-icon.png?raw=true" width="140" />
+--       </td>
+--       <td style="border: none; vertical-align: middle; padding-left: 0px; text-align: left; padding-right: 0; padding-top: 0; padding-bottom: 0;">
+--         <h1 style="font-weight: bold; margin: 0;">Fabric Analytics Roadshow Lab</h1>
+--       </td>
+--     </tr>
+--   </table>
+-- </div>
+-- 
+-- ## Overview
+-- Welcome to the **McMillan Industrial Group** analytics transformation journey! In this lab, you'll use the data collected in the warehouse from the previous lab to build a conversation AI experience with Fabric's data agents.
+-- 
+-- ### The Business Scenario
+-- McMillan Industrial Group is a leading manufacturer and distributor of industrial equipment and parts. Their systems generate a variety of data. The analytical data model will be focused on:
+-- - 👥 **Customers** - Customer master data and profiles
+-- - 📝 **Orders** - Sales orders placed online and manually
+-- - ⚙️ **Items** - Item master data
+-- - 📦 **Shipments** - Outbound shipments and delivery tracking
+-- 
+-- This data has been cleaned and modeled in a warehouse.
+-- 
+-- ### Architecture: Medallion Pattern
+-- We'll implement a **medallion architecture** - a common practice for organizing data based on the level of data refinement and readiness for end-user consumption:
+-- 
+-- ```
+-- 📥 Landing Zone (Raw Data: JSON/Parquet)
+--     ↓ Spark - Structured Streaming
+-- 🥉 BRONZE Zone - Raw ingestion with audit columns and column name cleaning
+--     ↓ Spark - Structured Streaming
+-- 🥈 SILVER Zone - Cleaned, validated, and conformed data
+--     ↓ Fabric Warehouse - Dimensional Modeling
+-- 🥇 GOLD Zone - Business-level aggregates (Warehouse)
+--     ↓
+-- 🤖 Analytics & AI - Data Agent and Semantic Models
+-- ```
+-- 
+-- ---
+-- 
+-- ## 🎯 Lab Setup
+-- 
+-- Before we explore data agent fundamentals, you need to ensure Lab 2 has been completed.
+-- 
+-- ### What You'll Learn in This Notebook
+-- 
+-- 1. **Fabric data agent fundamentals** - What is a data agent and how does it work?
+-- 1. **Adding data sources** - Provide data sources which the data agent will use to run queries and answer user questions
+-- 1. **Providing context for a data agent** - Guide the agent in generating accurate and relevant responses to user questions
+-- 1. **Testing and publishing the agent** - Verify the agent is navigating the data sources properly and generating high quality queries
+-- 
+-- By the end of the lab, you'll understand the basics of building and testing a data agent.
+-- 
+-- Let's get started!
+
+
+-- MARKDOWN ********************
+
+-- ## 📚 Part 1: Data Agent Fundamentals
+-- 
+-- Data agent in Microsoft Fabric enables you to build your own conversational experience using generative AI. This experience can make analysis more accessible to individuals in your company by allowing them to explore data without the need to deeply understand data models, search for reports, or build their own reports. Instead, they can have a chat based experience using plain English-language questions, receive an answer, and even ask follow up questions while maintaining the context of the prior results. 
+-- 
+-- Fabric offers a wide range of options to test, diagnose, and tune your data agent for low code users in a browser based UX and for code-first users through Python and JSON downloads. 
+-- 
+-- After you are happy with your agent, you can publish and consume it through a variety of methods including from the Copilot button in the Fabric UX, Copilot Studio, the M365 Copilot, the Python SKD, and Azure AI Foundry which enables an even larger set of possibilites. 
+-- 
+-- At a high level, a data agent works by...
+-- 
+-- 1. The Fabric data agent applies Azure OpenAI Assistant APIs to process user questions.
+-- 1. Using user-provided instructions the agent will determine the most relevant data source.
+-- 1. Using the user's credentials, the agent accesses the schema of the data source. This ensures the agent can't access data to which the user does not have permission. 
+-- 1. The data agent converts the natural language question to SQL, DAX, or KQL depending on the source it determined it should use in the prior step.
+-- 1. The query is validate to ensure it is correctly formed and follows the appropriate security protocols and responsible AI policies. 
+-- 1. The query is executed against the data source. 
+-- 1. The result is formatted into a human-readable response in the structure most appropriate for the data and in line with the agent instructions provided.
+-- 
+-- In the next sections, you will see how to setup agent instructions, data source instructions, and provide sample queries to fine tune the agent for your business.
+-- 
+-- To get started!
+
+
+-- MARKDOWN ********************
+
+-- ## 📚 Part 2: Adding Data Sources
+-- 
+-- A Fabric data agent supports up to five data sources in any combination, including lakehouses, warehouses, KQL databases, Power BI semantic models, and ontologies. For example, a configured Fabric data agent could include five Power BI semantic models. It could include a mix of two Power BI semantic models, one lakehouse, and one KQL database. You have many available options.
+-- 
+-- After adding data sources, select the relevant tables from each source. This ensures the agent only looks at the tables necessary to satisfy user queries providing more accurate results.
+-- 
+-- 1. In the **Explorer**, select **+ Data source** then select **Data source** to add a new data source to the agent. 
+-- 
+--     ![](https://github.com/microsoft/fabric-analytics-roadshow-lab/blob/main/assets/images/data-agent/02_add_data_source_01.png?raw=true)
+-- 
+-- 1. On the **Add a data source** page, select the **SalesAndLogisticsWH** warehouse from the item list then select **Add**.
+-- 
+--     ![](https://github.com/microsoft/fabric-analytics-roadshow-lab/blob/main/assets/images/data-agent/02_add_data_source_warehouse.png?raw=true)
+-- 
+-- 1. In the **Explorer**, select the check box next to the following tables in the Sales data warehouse:
+-- 
+--     - dim.address
+--     - dim.customer
+--     - dim.date
+--     - dim.item
+--     - dim.order_source
+--     - fact.order
+--     - fact.shipment
+-- 
+--     ![](https://github.com/microsoft/fabric-analytics-roadshow-lab/blob/main/assets/images/data-agent/02_add_data_warehouse_tables.png?raw=true)
+
+
+-- MARKDOWN ********************
+
+-- ## 📚 Part 3: Providing Context for a Data Agent
+-- 
+-- To improve the Fabric data agent accuracy, provide more context through Fabric data agent instructions and example queries. As the underlying agent for the Fabric data agent, the context helps the Azure OpenAI Assistant API make more informed decisions about how to process user questions, and determine which data source is best suited to answer them.
+-- 
+-- As you copy and paste instructions and code into the agent, be sure to read them thoroughly and be familiar with the content. This will be important for validating the results in part 4 of this lab.
+-- 
+-- ### Agent instructions
+-- 
+-- Add instructions to guide the agent that underlies the Fabric data agent, in determining the best data source to answer specific types of questions. You can also provide definitions that clarify organizational terminology, specific requirements, or specify the tone and style of the responses.
+-- 
+-- 1. In a new browser tab, from your workspace open the **SalesAndLogisticsAgent** data agent.
+-- 
+-- 1. From the **Home** tab of the ribbon, select **Agent instructions**.
+-- 
+--     ![](https://github.com/microsoft/fabric-analytics-roadshow-lab/blob/main/assets/images/data-agent/03_open_agent_instructions.png?raw=true)
+-- 
+-- 1. In the **Agent instructions** replace the placeholder text with the following markdown to help the agent route questions to the appropriate data source then click anywhere outside the text box to apply the changes:
+-- 
+--     ```markdown
+--     ## Objective
+--     Give users the ability to analyze purchase habits of McMillian Industry's customers and the logistics surrounding those purchases including inventory management, product movement, and customer demographics. 
+-- 
+--     ## Data sources
+--     When asked about sales or orders, use the **SalesAndLogisticsWH** warehouse.
+--     When asked about on time shipments, use the **SalesAndLogisticsWH** warehouse.
+-- 
+--     ## Tone and style
+--     Always keep the answers short, direct, and friendly.
+-- 
+--     ## Special instructions
+--     When asked about specific customer's purchases always include the count of distinct order_number for the customer in the response.
+--     ```
+-- 
+--     ![](https://github.com/microsoft/fabric-analytics-roadshow-lab/blob/main/assets/images/data-agent/03_agent_instructions.png?raw=true)
+-- 
+-- ### Data source instructions
+-- 
+-- Data source instructions are applied when the agent routes a question to a specific data source. These instructions provide the context needed to construct precise queries—whether in SQL, DAX, or KQL—so the agent can retrieve accurate information. Provide data source–specific guidance, such as relevant tables, columns, relationships, and any query logic required to answer common or complex questions. The more context provided, the more effectively the agent can generate accurate and meaningful queries.
+-- 
+-- 1. Perform the following steps to add instructions for the SalesAndLogistics warehouse:
+--     - In the **Explorer**, select **Setup**.
+--     - Under the **SalesAndLogisticsWH** warehouse, select **Data source instructions**.
+--     - In the **Data source description**, replace the placeholder text with the following markdown to help the agent better understand what kind of data this source contains and the types of questions it can answer:
+-- 
+--     ```markdown
+--     The **SalesAndLogisticsWH** data warehouse contains data for orders, shipments, and the details surrounding those actions. It has tables for customer, date, item, order_source, order, and shipment. Use this source for questions about orders, including their line item detail, and customer purchase habits. Also use this source for aggregated shipment information including when shipments left, when they were scheduled to arrive, and when they actually arrived. This data does not contain detail level shipping data for each scan event on a shipment's journey. 
+--     ```
+-- 
+--     - In the **Data source instructions**, replace the placeholder text with the following markdown to help the agent better understand context for the warehouse queries:
+--     
+--     ```markdown
+--     ## Key information
+-- 
+--     **Sales and orders**
+-- 
+--     - An order is commonly referred to as "sales", a "sale", and "orders". Always use the *fact.order* table for these inquiries. 
+--     - A single order_number can contain one or more order_line_number. 
+--     - Aggregate all order_line_number records together to get order_number level information.
+--     - When referring to an order, search and aggregate by the order_number column.
+--     - When asked about sales amount or order amount or money spent use the extended_price field.
+-- 
+--     **Items**
+-- 
+--     - When asked about items or products, look at *dim.item*.
+--     - Slice by brand, category. 
+-- 
+--     **Customers**
+-- 
+--     - For questions about customers, use their *delivery_state *for analysis instead of the *billing_state*.
+-- 
+--     **Shipment**
+-- 
+--     - Each shipment will have one record in the *fact.shipment* table. 
+--     - When analyzing shipments use the *destination_*address_sk** field in the *fact.shipment* table to join to the *dim.address* table on the address_sk field. 
+--     - Do not use the origin_address_sk field unless explicitly told to do so. 
+-- 
+--     **Combined Order and Shipment analysis**
+-- 
+--     - When asked about orders and shipments together, use *order_number* to join *fact.shipment* and *fact.order*.
+--     - A single *order_number* in *fact.order* may have multiple associated shipments in *fact.shipment*. 
+--     ```
+-- 
+--     ![](https://github.com/microsoft/fabric-analytics-roadshow-lab/blob/main/assets/images/data-agent/03_data_source_instructions.png?raw=true)
+-- 
+-- 1. Perform the following steps to add an example query to help the agent learn patterns about the data:
+--     - In the **Explorer**, select **Setup**.
+--     - Under the **SalesAndLogisticsWH** warehouse, select **Example queries**.
+--     - Select **+ Add** from across the top of the example queries pane. 
+--     - In the **Question** box, enter: **What were the 5 states with the highest late delivery penalty cost?**
+--     - In the **SQL query** box, enter the following code:
+-- 
+--     ```sql
+--     SELECT TOP 5
+--         a.state_abbreviation,
+--         COUNT_BIG(*) AS late_shipment_count,
+--         SUM(late_delivery_penalty) AS total_late_delivery_penalty
+--     FROM fact.shipment AS s
+--     INNER JOIN dim.address a
+--         ON s.destination_address_sk = a.address_sk
+--     WHERE
+--         s.delivery_days_late > 0
+--     GROUP BY
+--         a.state_abbreviation
+--     ORDER BY total_late_delivery_penalty DESC
+--     ```
+-- 
+--     - Click anywhere outside the SQL query box and the query will be validated. Invalid queries will be ignored by the agent. 
+-- 
+--     ![](https://github.com/microsoft/fabric-analytics-roadshow-lab/blob/main/assets/images/data-agent/03_data_source_example_queries_01.png?raw=true)
+-- 
+-- 1. Perform the following steps to add a second example query:
+--     - Select **+ Add** from across the top of the example queries pane. 
+--     - In the **Question** box, enter: **What are the top 10 category and subcategories with the longest average delivery days late?**
+--     - In the **SQL query** box, enter the following code:
+-- 
+--     ```sql
+--     SELECT TOP 10
+--         i.category,
+--         i.subcategory,
+--         CONVERT(DECIMAL(10,3), AVG(s.delivery_days_late * 1.0)) AS average_delivery_days_late,
+--         COUNT(DISTINCT shipment_sk) AS late_delivery_count,
+--         MAX(s.delivery_days_late) AS max_delivery_days_late
+--     FROM fact.[order] AS o
+--     INNER JOIN dim.item AS i
+--         ON o.item_sk = i.item_sk
+--     LEFT JOIN fact.shipment AS s
+--         ON o.order_number = s.order_number
+--     WHERE
+--         s.delivery_days_late > 0
+--     GROUP BY
+--         i.category,
+--         i.subcategory
+--     ORDER BY average_delivery_days_late DESC
+--     ```
+-- 
+--     - Click anywhere outside the SQL query box and the query will be validated. Invalid queries will be ignored by the agent. 
+-- 
+--     ![](https://github.com/microsoft/fabric-analytics-roadshow-lab/blob/main/assets/images/data-agent/03_data_source_example_queries_02.png?raw=true)
+
+
+-- MARKDOWN ********************
+
+-- ## 📚 Part 4: Testing and Publishing the Agent
+-- 
+-- With the context added to the agent, it is time to provide a few test prompts and explore the responses to see how the agent is using the agent instructions, data source instructions, and example queries. 
+-- 
+-- 1. In the **Test the agent's responses** pane, select the **Broom** icon (Clear chat).
+-- 
+--     ![](https://github.com/microsoft/fabric-analytics-roadshow-lab/blob/main/assets/images/data-agent/04_clear_chat_fullscreen.png?raw=true)
+-- 
+-- 1. On the **Clear chat?** dialog, select **Clear chat**.
+-- 
+--     ![](https://github.com/microsoft/fabric-analytics-roadshow-lab/blob/main/assets/images/data-agent/04_clear_chat_confirm.png?raw=true)
+-- 
+-- 1. In the **Test the agent's responses** pane, enter the question **Show the total number of sales and shipments to each state.** in the **chat box** then select **Send**.
+-- 
+--     ![](https://github.com/microsoft/fabric-analytics-roadshow-lab/blob/main/assets/images/data-agent/04_total_sales.png?raw=true)
+-- 
+-- 1. Investigate the output by performing the following actions:
+--     - Read the response and look for any potential problems.
+--     - Select **1 step completed** to expand the step list. 
+--     - Select the **arrow** on the right side of the step to expand the step detail.
+--     - Notice the query used *destination_address_sk* to join on as instructed. 
+--     - Notice the join between order and shipment is a LEFT JOIN just like in the example queries. 
+-- 
+--     ![](https://github.com/microsoft/fabric-analytics-roadshow-lab/blob/main/assets/images/data-agent/04_total_sales_step_detail.png?raw=true)
+-- 
+-- 1. Scroll further in the step details and you will notice a section labeled **Example queries** and you will be shown which example queries helped guide the agent's response for this question.
+-- 
+--     ![](https://github.com/microsoft/fabric-analytics-roadshow-lab/blob/main/assets/images/data-agent/04_total_sales_example_queries.png?raw=true)
+-- 
+-- 1. In the **Test the agent's responses** pane, enter the question **Who were the top 5 customers by order amount?** in the **chat box** then select **Send**.
+-- 
+--     ![](https://github.com/microsoft/fabric-analytics-roadshow-lab/blob/main/assets/images/data-agent/04_top_5_customers.png?raw=true)
+-- 
+-- 1. In the dataset used during lab creation, Johnson LLC was the customer with the largest order amount. Your results will look different and may even include a different set of customers entirely. Copy the name of your top customer by total order amount to be used in our next question to the agent.
+-- 
+--     ![](https://github.com/microsoft/fabric-analytics-roadshow-lab/blob/main/assets/images/data-agent/04_top_5_customers_step_detail.png?raw=true)
+-- 
+-- 1. In the **Test the agent's responses** pane, enter the question **What was the most purchased item by Johnson LLC?** (be sure to replace Johnson LLC with your top customer from the previous step) in the **chat box** then select **Send**.
+-- 
+--     ![](https://github.com/microsoft/fabric-analytics-roadshow-lab/blob/main/assets/images/data-agent/04_top_customer.png?raw=true)
+-- 
+-- 1. In the response, notice it also includes the number of distinct orders thanks to our agent instructions provided in part 3 of this lab. There was a special instruction stating "When asked about specific customer's purchases always include the count of distinct order_number for the customer in the response".
+-- 
+--     ![](https://github.com/microsoft/fabric-analytics-roadshow-lab/blob/main/assets/images/data-agent/04_top_customer_response.png?raw=true)
+-- 
+-- 1. Finally, you can see the agent allows for a conversational experience and remembers context in the discussion. Perform the following actions:
+--     - In the **Test the agent's responses** pane, enter the question **What were my best selling items?** in the **chat box** then select **Send**.
+--     - After reading through the response, enter the question **What about by order amount?** in the **chat box** then select **Send**.
+--     - You will see that you did not need to mention anything about best selling items. It knows you are looking at best selling items so it will perform the same analysis but this time use order amount instead of quantity sold. 
+-- 
+--     ![](https://github.com/microsoft/fabric-analytics-roadshow-lab/blob/main/assets/images/data-agent/04_conversation.png?raw=true)
+-- 
+-- 1. You can even refine the format by entering **Present the data in a table.** in the **chat box** then selecting **send**.
+-- 
+--     ![](https://github.com/microsoft/fabric-analytics-roadshow-lab/blob/main/assets/images/data-agent/04_conversation_table.png?raw=true)
+-- 
+-- 1. From the **Home** tab of the ribbon, select **Publish**.
+-- 
+--     ![](https://github.com/microsoft/fabric-analytics-roadshow-lab/blob/main/assets/images/data-agent/04_publish_button.png?raw=true)
+-- 
+-- 1. On the **Publish data agent** dialog box, select **Publish**.
+-- 
+--     ![](https://github.com/microsoft/fabric-analytics-roadshow-lab/blob/main/assets/images/data-agent/04_publish_agent.png?raw=true)
+-- 
+-- 1. Upon completion, a notification will display indicating the agent was published successfully. 
+-- 
+--     ![](https://github.com/microsoft/fabric-analytics-roadshow-lab/blob/main/assets/images/data-agent/04_publish_successful.png?raw=true)
+
+
+-- MARKDOWN ********************
+
+-- ---
+-- 
+-- ## 🎓 Key Takeaways & Next Steps
+-- 
+-- ### 🏆 What You've Accomplished
+-- 
+-- Congratulations! You've created a Fabric data agent complete with instructions and sample queries. Here's what you've learned:
+-- 
+-- #### 1. Fabric data agent fundamentals
+-- - **Context aware**: The agent knows information about your data model and business based on what you tell it
+-- - **Natural language**: The agent will convert natural language to SQL, DAX, or KQL depending on the data source
+-- - **Secure**: The credentials of the user will be passed to the data source ensuring data stays secure
+-- 
+-- #### 2. Adding data sources
+-- - **Available sources**: Data sources can be warehouses, lakehouses, semantic models, or KQL databases
+-- - **Multiple sources**: Up to 5 data sources can be added to the agent
+-- - **Select tables**: Select only the tables necessary to keep the agent focused and improve query quality
+-- 
+-- #### 3. Providing context for a data agent
+-- - **Agent instructions**: Tell the agent what each data source is used for, provide custom scenario instructions, and fine tune the tone of the agent
+-- - **Data source instructions**: Provide details on how tables are related and logic for how to answer common or complex questions
+-- - **Sample queries**: Give sample questions and the exact query to satisfy it to help the agent understand the data further
+-- 
+-- #### 4. Testing and publishing the agent
+-- - **Test the agent's responses**: Use the browser based experience to test your agent
+-- - **Step detail**: Use the step detail to explore how sample queries and instructions influenced the response
+-- - **Code first experience**: Evaluate the data agent using the data agent SKD 
+-- - **Publish and consume**: After publishing the agent, extend the reach with Azure AI Foundry, Copilot in Power BI, the Python SDK, and more
+-- 
+-- ---
+-- 
+-- ### 📚 Additional Resources
+-- 
+-- Expand your knowledge with these official docs:
+-- 
+-- - [Configure Fabric data agent tenant settings](https://learn.microsoft.com/en-us/fabric/data-science/data-agent-tenant-settings)
+-- - [Create a Fabric data agent](https://learn.microsoft.com/en-us/fabric/data-science/how-to-create-data-agent)
+-- - [Fabric data agent example](https://learn.microsoft.com/en-us/fabric/data-science/data-agent-end-to-end-tutorial)
+-- - [Configure your data agent](https://learn.microsoft.com/en-us/fabric/data-science/data-agent-configurations)
+-- - [Evaluate a Fabric data agent](https://learn.microsoft.com/en-us/fabric/data-science/evaluate-data-agent)
+-- - [Consume a Fabric Data Agent in Microsoft Copilot Studio](https://learn.microsoft.com/en-us/fabric/data-science/data-agent-microsoft-copilot-studio)
+-- 
+-- ---
+-- 
+-- ### ✅ Congratulations, you completed all the labs!
+-- 
+-- **🎉 Great work completing this notebook and the lab!** You have built and entire end-to-end data pipeline that generates data and moves it through all three layers in a medallion architecture and a data agent providing users quick insights without the need to write queries or build any reports! 🚀
+
