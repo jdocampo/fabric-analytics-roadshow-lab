@@ -55,17 +55,17 @@ find_replace:
     item_type: "Notebook" # filter on notebook files
 
 key_value_replace:
-  - find_key: $.properties.activities[*].connectionSettings.properties.typeProperties.workspaceId
+  - find_key: $.properties.activities[*].linkedService.properties.typeProperties.workspaceId
     replace_value:
       _ALL_: "$workspace.$id" # workspace ID (dynamic)
     item_type: "DataPipeline"
     item_name: ["load_gold"]
-  - find_key: $.properties.activities[*].connectionSettings.properties.typeProperties.artifactId
+  - find_key: $.properties.activities[*].linkedService.properties.typeProperties.artifactId
     replace_value:
       _ALL_: "$items.Warehouse.SalesAndLogisticsWH.$id"
     item_type: "DataPipeline"
     item_name: ["load_gold"]
-  - find_key: $.properties.activities[*].connectionSettings.properties.typeProperties.endpoint
+  - find_key: $.properties.activities[*].linkedService.properties.typeProperties.endpoint
     replace_value:
       _ALL_: "$items.Warehouse.SalesAndLogisticsWH.$sqlendpoint"
     item_type: "DataPipeline"
