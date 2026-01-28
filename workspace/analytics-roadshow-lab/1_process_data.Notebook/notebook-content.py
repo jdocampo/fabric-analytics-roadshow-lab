@@ -75,7 +75,7 @@
 # ### Step 1: Trigger the Spark Job Definition
 # > **Note:** Please read the full instructions for this step before opening the Spark Job Definition.
 # 
-# 1. **Open Spark Job Definition** - Click here to open: [stream_bronze_and_silver](https://app.powerbi.com/groups/$workspaceId/sparkjobdefinitions/$sparkJobDefinitionId?experience=power-bi)
+# 1. **Open Spark Job Definition** - Click here to open: [stream_bronze_and_silver](https://app.powerbi.com/groups/$workspaceId/sparkjobdefinitions/$sparkJobDefinitionId?experience=fabric-developer)
 # 1. **Click** the **"Run"** button at the top of the screen
 # 1. **Confirm** the job starts successfully (you'll see a status of "Running")
 # 1. **Return** to this Notebook (1_process_data)
