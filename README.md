@@ -32,7 +32,7 @@ In your Fabric workspace, create a new Notebook (PySpark or Python runtime).
 Copy, paste, and the run the below in a Notebook cell.
 
 ```python
-!pip install fabric-jumpstart
+!pip install fabric-jumpstart --quiet
 
 import fabric_jumpstart
 fabric_jumpstart.install('analytics-roadshow-lab')
